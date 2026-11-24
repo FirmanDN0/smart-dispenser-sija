@@ -1,0 +1,151 @@
+{
+  "devices": {
+    "dispenser01": {
+      "telemetry": {
+        "latest": {
+          "cup_distance_cm": 6.8,
+          "cup_detected": true,
+          "reservoir_distance_cm": 5.2,
+          "reservoir_percentage": 78,
+          "tray_adc": 310,
+          "spill_detected": false,
+          "flow_pulses": 240,
+          "measured_volume_ml": 200,
+          "flow_rate_lpm": 1.45,
+          "pump_running": false,
+          "buzzer_active": false,
+          "ai_classification": "AMAN",
+          "ai_risk_level": "LOW",
+          "ai_explanation": "Kondisi dispenser normal. Cangkir terdeteksi, volume air cukup, baki kering.",
+          "timestamp": 1732338000000
+        }
+      },
+      "state": {
+        "status": "IDLE",
+        "active_command_id": null,
+        "current_user_id": null,
+        "is_online": true,
+        "wifi_rssi": -58,
+        "ip_address": "192.168.1.105",
+        "firmware_version": "1.0.0-sija"
+      },
+      "commands": {
+        "cmd_example_1": {
+          "id": "cmd_example_1",
+          "action": "START_DISPENSE",
+          "volume_ml": 200,
+          "user_id": "student_01",
+          "status": "COMPLETED",
+          "created_at": 1732337950000,
+          "expires_at": 1732338010000
+        }
+      },
+      "acknowledgments": {
+        "cmd_example_1": {
+          "command_id": "cmd_example_1",
+          "status": "COMPLETED",
+          "actual_volume_ml": 200,
+          "duration_ms": 8200,
+          "message": "Dispensing selesai sesuai target volume.",
+          "timestamp": 1732337995000
+        }
+      },
+      "lastSeen": 1732338000000
+    }
+  },
+  "users": {
+    "student_01": {
+      "profile": {
+        "id": "student_01",
+        "nis": "12022001",
+        "name": "Ahmad Fauzi",
+        "class": "XII SIJA 2",
+        "daily_goal_ml": 1500,
+        "created_at": 1732330000000
+      },
+      "settings": {
+        "default_volume_ml": 200,
+        "reminder_interval_min": 60,
+        "sound_enabled": true
+      }
+    },
+    "student_02": {
+      "profile": {
+        "id": "student_02",
+        "nis": "12022002",
+        "name": "Bunga Citra",
+        "class": "XII SIJA 2",
+        "daily_goal_ml": 1800,
+        "created_at": 1732330000000
+      },
+      "settings": {
+        "default_volume_ml": 100,
+        "reminder_interval_min": 45,
+        "sound_enabled": true
+      }
+    },
+    "student_03": {
+      "profile": {
+        "id": "student_03",
+        "nis": "12022003",
+        "name": "Dimas Pratama",
+        "class": "XII SIJA 2",
+        "daily_goal_ml": 2000,
+        "created_at": 1732330000000
+      },
+      "settings": {
+        "default_volume_ml": 300,
+        "reminder_interval_min": 60,
+        "sound_enabled": true
+      }
+    }
+  },
+  "dispensingLogs": {
+    "log_001": {
+      "id": "log_001",
+      "device_id": "dispenser01",
+      "user_id": "student_01",
+      "student_name": "Ahmad Fauzi",
+      "requested_volume_ml": 200,
+      "measured_volume_ml": 200,
+      "flow_pulses": 240,
+      "duration_ms": 8200,
+      "status": "COMPLETED",
+      "timestamp": 1732337995000
+    }
+  },
+  "violationEvents": {
+    "viol_001": {
+      "id": "viol_001",
+      "device_id": "dispenser01",
+      "user_id": "student_03",
+      "student_name": "Dimas Pratama",
+      "type": "CUP_REMOVED_DURING_FILL",
+      "severity": "HIGH",
+      "description": "Cangkir diangkat sebelum pengisian selesai saat pompa aktif.",
+      "sensor_snapshot": {
+        "cup_distance_cm": 28.5,
+        "tray_adc": 320,
+        "flow_pulses": 85
+      },
+      "timestamp": 1732335000000
+    }
+  },
+  "aiResults": {
+    "ai_001": {
+      "id": "ai_001",
+      "device_id": "dispenser01",
+      "classification": "AMAN",
+      "risk_level": "LOW",
+      "explanation": "Seluruh parameter sensor berada pada rentang operasional yang aman.",
+      "evidence": {
+        "cup_detected": true,
+        "reservoir_percentage": 78,
+        "tray_adc": 310,
+        "flow_normal": true
+      },
+      "recommended_action": "Sistem siap menerima perintah pengisian air.",
+      "timestamp": 1732338000000
+    }
+  }
+}

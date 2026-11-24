@@ -1,0 +1,51 @@
+{
+  "rules": {
+    "devices": {
+      "$deviceId": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.admin === true",
+        "telemetry": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.token.admin === true"
+        },
+        "state": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.token.admin === true"
+        },
+        "commands": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "acknowledgments": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.token.admin === true"
+        },
+        "lastSeen": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.token.admin === true"
+        }
+      }
+    },
+    "users": {
+      "$userId": {
+        ".read": "auth != null && (auth.uid === $userId || auth.token.admin === true)",
+        ".write": "auth != null && (auth.uid === $userId || auth.token.admin === true)"
+      }
+    },
+    "dispensingLogs": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin === true",
+      ".indexOn": ["userId", "timestamp", "deviceId"]
+    },
+    "violationEvents": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin === true",
+      ".indexOn": ["userId", "timestamp", "type"]
+    },
+    "aiResults": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin === true",
+      ".indexOn": ["timestamp", "classification"]
+    }
+  }
+}

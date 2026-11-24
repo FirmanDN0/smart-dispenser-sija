@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "antislop-ui": {
+      "source": "miqdadbadjuber/anti-slop",
+      "sourceType": "github",
+      "skillPath": "skills/antislop-ui/SKILL.md",
+      "computedHash": "4ea8946b7b9937c0996554f0e7becc551ac512baf086666adc795a17241121da"
+    }
+  }
+}

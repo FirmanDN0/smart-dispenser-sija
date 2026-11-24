@@ -1,0 +1,98 @@
+{
+  "model_name": "SmartDispenser-RuleAI-v1",
+  "version": "1.0.0",
+  "type": "Explainable Rule-Based Sensor Classifier",
+  "author": "SMK Telkom Sidoarjo - XII SIJA UKL 3",
+  "features": [
+    "cup_distance_cm",
+    "cup_detected",
+    "reservoir_distance_cm",
+    "reservoir_percentage",
+    "tray_adc",
+    "flow_pulses",
+    "pump_running",
+    "no_flow_duration_ms",
+    "sensor_validity"
+  ],
+  "classes": [
+    "AMAN",
+    "GELAS_TIDAK_ADA",
+    "AIR_RENDAH",
+    "TUMPAHAN",
+    "ALIRAN_BERMASALAH",
+    "SENSOR_ERROR"
+  ],
+  "thresholds": {
+    "cup": {
+      "min_valid_cm": 2.0,
+      "max_valid_cm": 40.0,
+      "detected_max_cm": 10.0
+    },
+    "reservoir": {
+      "full_distance_cm": 4.0,
+      "empty_distance_cm": 18.0,
+      "low_threshold_percent": 20.0,
+      "critical_threshold_percent": 10.0
+    },
+    "tray_spill": {
+      "adc_dry_baseline": 350,
+      "adc_spill_threshold": 1200,
+      "hysteresis": 150
+    },
+    "flow": {
+      "expected_pulses_per_ml": 1.2,
+      "no_flow_timeout_ms": 2500
+    }
+  },
+  "rules_priority_order": [
+    {
+      "priority": 1,
+      "condition": "sensor_validity == False or cup_distance_cm < 0 or reservoir_distance_cm < 0",
+      "target_class": "SENSOR_ERROR",
+      "risk_level": "HIGH",
+      "action": "HALT_SYSTEM_CHECK_WIRING"
+    },
+    {
+      "priority": 2,
+      "condition": "tray_adc >= thresholds.tray_spill.adc_spill_threshold",
+      "target_class": "TUMPAHAN",
+      "risk_level": "CRITICAL",
+      "action": "EMERGENCY_SHUTDOWN_PUMP_BUZZER_ALARM"
+    },
+    {
+      "priority": 3,
+      "condition": "pump_running == True and cup_detected == False",
+      "target_class": "GELAS_TIDAK_ADA",
+      "risk_level": "CRITICAL",
+      "action": "EMERGENCY_SHUTDOWN_PUMP_LOG_VIOLATION"
+    },
+    {
+      "priority": 4,
+      "condition": "pump_running == True and no_flow_duration_ms > thresholds.flow.no_flow_timeout_ms",
+      "target_class": "ALIRAN_BERMASALAH",
+      "risk_level": "HIGH",
+      "action": "STOP_PUMP_CHECK_BLOCKAGE"
+    },
+    {
+      "priority": 5,
+      "condition": "reservoir_percentage <= thresholds.reservoir.low_threshold_percent",
+      "target_class": "AIR_RENDAH",
+      "risk_level": "MEDIUM",
+      "action": "DISABLE_DISPENSE_PROMPT_REFILL"
+    },
+    {
+      "priority": 6,
+      "condition": "cup_detected == False and pump_running == False",
+      "target_class": "GELAS_TIDAK_ADA",
+      "risk_level": "LOW",
+      "action": "STANDBY_WAIT_FOR_CUP"
+    },
+    {
+      "priority": 7,
+      "condition": "default",
+      "target_class": "AMAN",
+      "risk_level": "LOW",
+      "action": "READY_FOR_DISPENSE"
+    }
+  ]
+}
