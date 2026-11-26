@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySessionToken } from "@/lib/auth";
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
-import { getSimulationStore, simulateDispenseProgress } from "@/lib/simulation";
+import { getSimulationStore, simulateDispenseProgress, updateSimulatedTelemetry } from "@/lib/simulation";
 import { z } from "zod";
 
 const startDispenseSchema = z.object({
   volumeMl: z.number().int().min(20).max(500),
   deviceId: z.string().default("dispenser01"),
   simulate: z.boolean().optional(),
+  bypassSafety: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { volumeMl, deviceId, simulate } = parsed.data;
+    const { volumeMl, deviceId, simulate, bypassSafety } = parsed.data;
     const now = Date.now();
     const commandId = `cmd_${now}_${Math.random().toString(36).substring(2, 7)}`;
     const expiresAt = now + 45 * 1000; // 45s command expiration
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
       id: commandId,
       action: "START_DISPENSE" as const,
       volume_ml: volumeMl,
+      bypass_safety: bypassSafety ?? false,
       user_id: student.id,
       user_name: student.name,
       status: "PENDING" as const,
@@ -49,29 +51,30 @@ export async function POST(request: NextRequest) {
       expires_at: expiresAt,
     };
 
-    // If explicit simulation mode is requested or Firebase Admin is not configured
+    // Reset volume air & pulsa ke 0 setiap kali pengisian baru dimulai
+    updateSimulatedTelemetry({
+      measured_volume_ml: 0,
+      flow_pulses: 0,
+    });
+
+    // Always register in local memory store so local ESP32 polling /api/device/commands immediately gets it
+    const simStore = getSimulationStore();
+    simStore.commands[commandId] = commandPayload;
+
+    // Also persist to Firebase Realtime Database if configured
     const { db, isConfigured } = getFirebaseAdmin();
-    if (simulate || !isConfigured || !db) {
-      const simStore = getSimulationStore();
-      simStore.commands[commandId] = commandPayload;
-      // Trigger simulation runner
-      simulateDispenseProgress(volumeMl, student.id, student.name);
-
-      return NextResponse.json({
-        success: true,
-        commandId,
-        message: "Perintah dispensing dijadwalkan (Mode Simulasi Aktif).",
-        simulation: true,
-      });
+    if (isConfigured && db) {
+      try {
+        await db.ref(`devices/${deviceId}/commands/${commandId}`).set(commandPayload);
+      } catch (e) {
+        console.warn("[Firebase Command Write Warning]:", e);
+      }
     }
-
-    // Write real command to Firebase Realtime Database
-    await db.ref(`devices/${deviceId}/commands/${commandId}`).set(commandPayload);
 
     return NextResponse.json({
       success: true,
       commandId,
-      message: "Perintah dispensing terkirim ke antrean cloud. Menunggu ESP32...",
+      message: "Perintah dispensing berhasil dikirim ke antrean ESP32 lokal.",
       simulation: false,
     });
   } catch (error) {

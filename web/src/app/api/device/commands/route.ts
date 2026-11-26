@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     volume_ml: number;
     user_id: string;
     expires_at: number;
+    bypass_safety?: boolean;
   }> = [];
 
   const now = Date.now();
@@ -37,17 +38,18 @@ export async function GET(request: NextRequest) {
 
       const data = snapshot.val();
       if (data) {
-        Object.entries(data).forEach(([key, val]) => {
+        for (const [key, val] of Object.entries(data)) {
           const cmd = val as {
             action: string;
             volume_ml: number;
             user_id: string;
             expires_at: number;
             status: string;
+            bypass_safety?: boolean;
           };
           // Filter expired commands
           if (cmd.expires_at && cmd.expires_at < now) {
-            db.ref(`devices/${deviceId}/commands/${key}/status`).set("FAILED");
+            await db.ref(`devices/${deviceId}/commands/${key}/status`).set("FAILED");
           } else {
             pendingCommands.push({
               id: key,
@@ -55,32 +57,46 @@ export async function GET(request: NextRequest) {
               volume_ml: cmd.volume_ml,
               user_id: cmd.user_id,
               expires_at: cmd.expires_at,
+              bypass_safety: cmd.bypass_safety ?? false,
             });
+            // Tandai langsung sebagai DISPATCHED di Firebase agar tidak terkirim ulang
+            await db.ref(`devices/${deviceId}/commands/${key}/status`).set("DISPATCHED");
+            // Sinkronkan juga ke memory store
+            const simStore = getSimulationStore();
+            if (simStore.commands[key]) {
+              simStore.commands[key].status = "DISPATCHED" as any;
+            }
           }
-        });
+        }
       }
     } catch (err) {
       console.error("[Commands Query Error]:", err);
     }
-  } else {
-    // In-memory simulation fallback
-    const simStore = getSimulationStore();
-    Object.entries(simStore.commands).forEach(([key, cmd]) => {
-      if (cmd.status === "PENDING") {
-        if (cmd.expires_at < now) {
-          cmd.status = "FAILED";
-        } else {
+  }
+
+  // Also merge in-memory store commands (Guarantees local testing works instantly)
+  const simStore = getSimulationStore();
+  Object.entries(simStore.commands).forEach(([key, cmd]) => {
+    if (cmd.status === "PENDING") {
+      if (cmd.expires_at < now) {
+        cmd.status = "FAILED";
+      } else {
+        // Prevent duplicate if already fetched from Firebase
+        if (!pendingCommands.some((c) => c.id === key)) {
           pendingCommands.push({
             id: key,
             action: cmd.action,
             volume_ml: cmd.volume_ml,
+            bypass_safety: (cmd as any).bypass_safety ?? false,
             user_id: cmd.user_id,
             expires_at: cmd.expires_at,
           });
+          // Mark as DISPATCHED so it is never re-sent to ESP32 repeatedly
+          cmd.status = "DISPATCHED" as any;
         }
       }
-    });
-  }
+    }
+  });
 
   return NextResponse.json({
     deviceId,

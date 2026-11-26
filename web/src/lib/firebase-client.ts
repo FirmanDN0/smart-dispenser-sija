@@ -15,7 +15,7 @@ let db: Database | null = null;
 let auth: Auth | null = null;
 
 export function getFirebaseClient() {
-  if (typeof window === "undefined") {
+  if (typeof window === "undefined" || process.env.NEXT_PUBLIC_ENABLE_CLOUD === "false") {
     return { app: null, db: null, auth: null };
   }
 

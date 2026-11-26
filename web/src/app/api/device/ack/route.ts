@@ -47,6 +47,13 @@ export async function POST(request: NextRequest) {
       timestamp: now,
     };
 
+    // 1. Selalu perbarui status di in-memory store agar perintah tidak tertinggal sebagai PENDING
+    const simStore = getSimulationStore();
+    if (simStore.commands[commandId]) {
+      simStore.commands[commandId].status = status;
+    }
+
+    // 2. Perbarui status di Firebase Realtime Database jika aktif
     const { db, isConfigured } = getFirebaseAdmin();
     if (isConfigured && db) {
       const updates: Record<string, unknown> = {};
@@ -74,12 +81,6 @@ export async function POST(request: NextRequest) {
       }
 
       await db.ref().update(updates);
-    } else {
-      // In-memory simulation store update
-      const simStore = getSimulationStore();
-      if (simStore.commands[commandId]) {
-        simStore.commands[commandId].status = status;
-      }
     }
 
     return NextResponse.json({ success: true, timestamp: now });

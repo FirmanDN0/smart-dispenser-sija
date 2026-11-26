@@ -55,10 +55,17 @@ export async function GET() {
 
   // Fallback to in-memory store (which receives POST from ESP32)
   const sim = getSimulationStore();
+  const now = Date.now();
+  const isOnline = sim.state.last_seen ? (now - sim.state.last_seen < 5000) : false;
   return NextResponse.json({
     telemetry: sim.telemetry,
-    state: sim.state,
+    state: {
+      ...sim.state,
+      is_online: isOnline,
+    },
     source: "server_memory",
+    serverTime: now,
+    lastSeen: sim.state.last_seen || null,
   });
 }
 

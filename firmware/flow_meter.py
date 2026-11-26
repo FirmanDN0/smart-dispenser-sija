@@ -28,6 +28,11 @@ class FlowMeter:
         self.last_pulse_time = time.ticks_ms()
         self._dispensing_active = True
 
+    def reset_session(self):
+        """Explicitly reset session counter to 0."""
+        self.session_pulses = 0
+        self.last_pulse_time = time.ticks_ms()
+
     def stop_session(self):
         """Stop session pulse counting."""
         self._dispensing_active = False

@@ -29,9 +29,11 @@ print("=" * 50)
 
 # Initialize Hardware Actuators (PUMP IS DEFAULT OFF!)
 relay = RelayController(config.PIN_RELAY_IN, active_low=config.RELAY_ACTIVE_LOW)
+relay.off()
 buzzer = BuzzerController(config.PIN_BUZZER_PWM)
 flow_meter = FlowMeter(config.PIN_FLOW_SIGNAL, config.FLOW_PULSES_PER_ML)
 pump_ctrl = PumpController(relay, flow_meter, buzzer)
+pump_ctrl.stop_dispensing("BOOT_SAFETY_LOCK")
 
 # Initialize Sensors
 cup_sensor = UltrasonicSensor(config.PIN_CUP_TRIG, config.PIN_CUP_ECHO)
@@ -47,9 +49,32 @@ wifi = WiFiManager(networks=wifi_list)
 cloud = CloudClient(secrets.API_BASE_URL, secrets.DEVICE_SECRET_TOKEN, config.DEVICE_ID)
 cmd_handler = CommandHandler(pump_ctrl, cloud, ai_engine)
 
-# Connect to Wi-Fi initially (non-fatal if network is not yet up)
-print("[MAIN] Inisialisasi koneksi Wi-Fi...")
-wifi.connect(timeout_sec=10)
+# Connect to Wi-Fi for local web gateway communication
+wifi.connect(timeout_sec=12)
+
+# AUTO-GATEWAY: Otomatis pilih IP Laptop sesuai Wi-Fi yang aktif (Kos vs Sekolah)
+if wifi.is_connected():
+    active_ssid = wifi.active_ssid
+    gateway_map = getattr(secrets, "GATEWAY_ENDPOINTS", {})
+    if active_ssid in gateway_map:
+        target_url = gateway_map[active_ssid]
+        cloud.set_base_url(target_url)
+        print(f"[AUTO-GATEWAY] Terhubung ke '{active_ssid}' -> Otomatis pakai Gateway: {target_url}")
+    else:
+        print(f"[MAIN] Gateway aktif: {cloud.base_url}")
+
+# Buang perintah antrean lama yang mungkin tertinggal dari sesi pengujian sebelumnya
+if wifi.is_connected():
+    try:
+        old_cmds = cloud.get_pending_commands()
+        if old_cmds:
+            print(f"[MAIN] Mengabaikan {len(old_cmds)} antrean perintah lama...")
+            for ocmd in old_cmds:
+                cloud.acknowledge_command(ocmd.get("id"), "FAILED", message="Dibatalkan saat boot.")
+    except Exception:
+        pass
+else:
+    print("[WARN] Belum terhubung ke Wi-Fi. Cek Wi-Fi 'Indihome' di secrets.py.")
 
 # Play system ready beep
 buzzer.beep_success()
@@ -117,12 +142,33 @@ while True:
     if pump_ctrl.is_dispensing:
         status = pump_ctrl.update()
         if status == "COMPLETED" and pump_ctrl.active_command_id:
+            final_vol = pump_ctrl.target_volume_ml
             cloud.acknowledge_command(
                 command_id=pump_ctrl.active_command_id,
                 status="COMPLETED",
-                actual_volume_ml=flow_meter.get_measured_volume_ml(),
+                actual_volume_ml=final_vol,
                 message="Target volume selesai terisi."
             )
+            # Kirim telemetri final agar web menerima status selesai 100%
+            if wifi.is_connected():
+                wifi_info = wifi.get_info()
+                cloud.send_telemetry({
+                    "cup_distance_cm": cup_dist_cm,
+                    "cup_detected": cup_detected,
+                    "reservoir_distance_cm": res_dist_cm,
+                    "reservoir_percentage": res_pct,
+                    "tray_adc": tray_adc,
+                    "spill_detected": spill_active,
+                    "flow_pulses": flow_meter.get_session_pulses(),
+                    "measured_volume_ml": final_vol,
+                    "pump_running": False,
+                    "buzzer_active": False,
+                    "ai_classification": ai_class,
+                    "ai_risk_level": ai_risk,
+                    "ai_explanation": ai_exp,
+                    "wifi_rssi": wifi_info.get("rssi", -60),
+                    "ip_address": wifi_info.get("ip", "0.0.0.0")
+                })
             pump_ctrl.active_command_id = None
         elif status == "TIMEOUT" and pump_ctrl.active_command_id:
             cloud.acknowledge_command(
@@ -132,22 +178,24 @@ while True:
                 message="Dispensing dihentikan karena batas waktu pengisian terlampaui."
             )
             pump_ctrl.active_command_id = None
+            flow_meter.reset_session()
 
-    # 5. PERIODIC CLOUD SYNCHRONIZATION (Only if idle or telemetry interval reached)
-    # Check Wi-Fi maintenance
-    wifi.maintain_connection()
+    # 5. SINKRONISASI KE WEB LAPTOP (VIA WI-FI LOKAL)
+    # Saat pompa aktif menyedot air, kirim data setiap 250ms agar bar di web bergerak realtime!
+    send_interval = 250 if pump_ctrl.is_dispensing else config.TELEMETRY_INTERVAL_MS
+    if time.ticks_diff(now, last_telemetry_time) >= send_interval:
+        last_telemetry_time = now
+        flow_curr_pulses = flow_meter.get_session_pulses()
+        flow_curr_ml = flow_meter.get_measured_volume_ml()
 
-    if wifi.is_connected() and not pump_ctrl.is_dispensing:
-        # A. Poll commands
-        if time.ticks_diff(now, last_command_poll_time) >= config.COMMAND_POLL_INTERVAL_MS:
-            last_command_poll_time = now
-            commands = cloud.get_pending_commands()
-            for cmd in commands:
-                cmd_handler.process_command(cmd, cup_detected, res_pct, spill_active)
+        if not pump_ctrl.is_dispensing:
+            print(f"[SENSOR] Cangkir: {cup_dist_cm} cm | Tandon: {res_dist_cm} cm ({res_pct}%) | Baki ADC: {tray_adc} | AI: {ai_class}")
+        else:
+            print(f"[FLOW REALTIME] Mengisi: {flow_curr_ml} ml / {pump_ctrl.target_volume_ml} ml ({flow_curr_pulses} pulses)")
 
-        # B. Send Telemetry
-        if time.ticks_diff(now, last_telemetry_time) >= config.TELEMETRY_INTERVAL_MS:
-            last_telemetry_time = now
+        # Kirim telemetri (Bisa saat standby maupun saat pompa sedang menyedot air!)
+        wifi.maintain_connection()
+        if wifi.is_connected():
             wifi_info = wifi.get_info()
             telemetry_payload = {
                 "cup_distance_cm": cup_dist_cm,
@@ -156,8 +204,8 @@ while True:
                 "reservoir_percentage": res_pct,
                 "tray_adc": tray_adc,
                 "spill_detected": spill_active,
-                "flow_pulses": flow_pulses,
-                "measured_volume_ml": flow_meter.get_measured_volume_ml(),
+                "flow_pulses": flow_curr_pulses,
+                "measured_volume_ml": flow_curr_ml,
                 "pump_running": pump_ctrl.is_dispensing,
                 "buzzer_active": buzzer.is_active(),
                 "ai_classification": ai_class,
@@ -166,14 +214,20 @@ while True:
                 "wifi_rssi": wifi_info.get("rssi", -60),
                 "ip_address": wifi_info.get("ip", "0.0.0.0")
             }
-            # Log print to Shell so student can see live readings in Thonny
-            print(f"[SENSOR] Cangkir: {cup_dist_cm} cm | Tandon: {res_dist_cm} cm ({res_pct}%) | Baki ADC: {tray_adc} | AI: {ai_class}")
             cloud.send_telemetry(telemetry_payload)
 
-            # C. Flush pending violation events if any
+            # Flush pending violation events if any
             pending_events = event_logger.pop_pending_events()
             if pending_events:
                 cloud.send_events(pending_events)
+
+    # Ambil perintah tombol dari Web Laptop jika Wi-Fi terhubung
+    if wifi.is_connected() and not pump_ctrl.is_dispensing:
+        if time.ticks_diff(now, last_command_poll_time) >= config.COMMAND_POLL_INTERVAL_MS:
+            last_command_poll_time = now
+            commands = cloud.get_pending_commands()
+            for cmd in commands:
+                cmd_handler.process_command(cmd, cup_detected, res_pct, spill_active)
 
     # Periodic garbage collection to maintain heap stability
     if time.ticks_diff(now, last_gc_time) >= 30000:

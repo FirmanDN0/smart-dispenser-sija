@@ -17,8 +17,9 @@ class PumpController:
         self.session_start_ms = 0
         self.current_user_id = None
         self.active_command_id = None
+        self.bypass_safety = False
 
-    def start_dispensing(self, volume_ml, user_id=None, command_id=None):
+    def start_dispensing(self, volume_ml, user_id=None, command_id=None, bypass_safety=False):
         """Initiates water dispensing."""
         if self.is_dispensing:
             return False, "Pompa sudah dalam keadaan aktif."
@@ -27,7 +28,10 @@ class PumpController:
         self.current_user_id = user_id
         self.active_command_id = command_id
         self.session_start_ms = time.ticks_ms()
+        self.bypass_safety = bypass_safety
 
+        # Pastikan sesi flow meter di-reset ke 0 sebelum memulai pengisian baru!
+        self.flow_meter.reset_session()
         self.flow_meter.start_session()
         self.relay.on()
         self.is_dispensing = True
@@ -48,7 +52,8 @@ class PumpController:
         self.flow_meter.stop_session()
 
         measured_ml = self.flow_meter.get_measured_volume_ml()
-        print(f"[PUMP] Dispensing dimatikan. Alasan: {reason}. Volume terukur: {measured_ml} ml.")
+        pulses = self.flow_meter.get_session_pulses()
+        print(f"[PUMP STOP] Alasan: {reason} | Pulsa: {pulses} | Volume: {measured_ml} ml.")
 
         if reason == "COMPLETED":
             self.buzzer.beep_success()
@@ -69,8 +74,9 @@ class PumpController:
         measured_ml = self.flow_meter.get_measured_volume_ml()
         elapsed_ms = time.ticks_diff(time.ticks_ms(), self.session_start_ms)
 
-        # Target volume reached
-        if measured_ml >= self.target_volume_ml:
+        # Target volume reached (dengan kompensasi inersia / sisa kucuran air)
+        cutoff_threshold = max(10, self.target_volume_ml - getattr(config, "FLOW_CUTOFF_OFFSET_ML", 0))
+        if measured_ml >= cutoff_threshold:
             self.stop_dispensing(reason="COMPLETED")
             return "COMPLETED"
 

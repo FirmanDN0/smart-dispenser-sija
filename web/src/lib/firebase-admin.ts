@@ -14,6 +14,17 @@ export function getFirebaseAdmin(): FirebaseAdminInstances {
     return adminInstances;
   }
 
+  // Cek saklar Cloud vs Lokal (Jika false, nonaktifkan Firebase agar full lokal super cepat)
+  if (process.env.ENABLE_CLOUD_FIREBASE === "false" || process.env.NEXT_PUBLIC_ENABLE_CLOUD === "false") {
+    adminInstances = {
+      app: null,
+      db: null,
+      auth: null,
+      isConfigured: false,
+    };
+    return adminInstances;
+  }
+
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
   let privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;

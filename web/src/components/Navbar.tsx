@@ -14,7 +14,8 @@ import {
   User, 
   Wrench,
   Wifi,
-  WifiOff
+  WifiOff,
+  Clock
 } from "lucide-react";
 
 interface StudentSession {
@@ -29,6 +30,15 @@ export default function Navbar() {
   const router = useRouter();
   const [student, setStudent] = useState<StudentSession | null>(null);
   const [isSimulated, setIsSimulated] = useState(false);
+  const [clockStr, setClockStr] = useState<string>("");
+
+  useEffect(() => {
+    // Live ticking clock
+    const updateClock = () => setClockStr(new Date().toLocaleTimeString("id-ID"));
+    updateClock();
+    const clockInterval = setInterval(updateClock, 1000);
+    return () => clearInterval(clockInterval);
+  }, []);
 
   useEffect(() => {
     // Check session on load
@@ -115,6 +125,14 @@ export default function Navbar() {
             >
               {isSimulated ? "SIMULASI" : "DEVICE LIVE"}
             </span>
+
+            {/* Live Clock Badge */}
+            {clockStr && (
+              <span className="hidden lg:flex items-center space-x-1 text-[11px] font-mono px-2 py-0.5 rounded bg-slate-900 text-cyan-300 border border-slate-800">
+                <Clock className="w-3 h-3 text-cyan-400" />
+                <span>{clockStr} WIB</span>
+              </span>
+            )}
           </div>
 
           {/* Navigation Links */}

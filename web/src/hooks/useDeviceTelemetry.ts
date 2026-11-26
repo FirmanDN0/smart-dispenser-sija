@@ -38,6 +38,21 @@ export function useDeviceTelemetry(deviceId = "dispenser01") {
     last_seen: Date.now(),
   });
   const [isLiveConnected, setIsLiveConnected] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [secondsAgo, setSecondsAgo] = useState<number>(0);
+
+  // Live ticking local clock
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      if (deviceState.last_seen) {
+        const diffSec = Math.max(0, Math.floor((now.getTime() - deviceState.last_seen) / 1000));
+        setSecondsAgo(diffSec);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [deviceState.last_seen]);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -73,13 +88,13 @@ export function useDeviceTelemetry(deviceId = "dispenser01") {
       onValue(lastSeenRef, (snapshot) => {
         const val = snapshot.val();
         if (val && isSubscribed) {
-          const isOnline = Date.now() - val < 12000;
+          const isOnline = Date.now() - val < 6000;
           setDeviceState((prev) => ({ ...prev, last_seen: val, is_online: isOnline }));
         }
       });
     }
 
-    // 2. Continuous Gateway Polling fallback (Ensures real ESP32 data is ALWAYS mirrored in web)
+    // 2. Continuous Fast Local Gateway Polling (400ms for instantaneous local sync)
     const pollServer = async () => {
       try {
         const res = await fetch("/api/device/telemetry");
@@ -98,9 +113,9 @@ export function useDeviceTelemetry(deviceId = "dispenser01") {
       }
     };
 
-    // Initial fetch and 1.5s interval
+    // Initial fetch and 400ms interval for super fast local responsiveness
     pollServer();
-    const interval = setInterval(pollServer, 1500);
+    const interval = setInterval(pollServer, 400);
 
     return () => {
       isSubscribed = false;
@@ -113,5 +128,5 @@ export function useDeviceTelemetry(deviceId = "dispenser01") {
     };
   }, [deviceId]);
 
-  return { telemetry, deviceState, isLiveConnected };
+  return { telemetry, deviceState, isLiveConnected, currentTime, secondsAgo };
 }

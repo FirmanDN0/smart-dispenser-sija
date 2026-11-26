@@ -37,13 +37,25 @@ SPILL_HYSTERESIS_ADC = 150
 
 # YF-S201 Flow Sensor Calibration
 # Pulses per milliliter (calibrated experimentally with measuring cup)
-# Default starting reference is ~1.20 pulses/ml (1200 pulses per Liter)
-FLOW_PULSES_PER_ML = 1.20
-FLOW_NO_PULSE_TIMEOUT_MS = 2500     # Time without pulses before warning if pump ON
+# Disesuaikan ke 15.0 pulsa/ml hasil kalibrasi takaran fisik presisi
+FLOW_PULSES_PER_ML = 15.0
+
+# Kompensasi Inersia & Tetesan Akhir Aliran Air (After-Drip Offset)
+# Pompa dimatikan sekian ml lebih awal agar dorongan sisa air menggenapi takaran gelas
+FLOW_CUTOFF_OFFSET_ML = 5.0
+
+FLOW_NO_PULSE_TIMEOUT_MS = 5000     # Batas toleransi tanpa pulsa (5 detik) agar pompa tidak mati dini
 MAX_DISPENSE_DURATION_MS = 25000    # Hard cutoff duration for dispensing safety
 
-# ================= CLOUD & TIMINGS =================
-TELEMETRY_INTERVAL_MS = 2500        # Send telemetry every 2.5 seconds
-COMMAND_POLL_INTERVAL_MS = 1500     # Poll pending commands every 1.5 seconds
-WIFI_RECONNECT_INTERVAL_MS = 10000   # Retry Wi-Fi connection if dropped
+# ================= CLOUD / LOCAL GATEWAY SYNC TOGGLE =================
+# Set True agar ESP32 mengirim telemetri & menerima perintah dari Web di Laptop (Lokal API)
+ENABLE_CLOUD_SYNC = True
+
+# Mode pengujian cepat pompa (Set True jika ingin pompa bisa nyala dari web meskipun cangkir belum dipasang)
+BYPASS_SAFETY_FOR_TEST = False
+
+# ================= LOCAL TIMINGS (Super Cepat di Jaringan Wi-Fi Lokal) =================
+TELEMETRY_INTERVAL_MS = 1000        # Kirim telemetri ke web laptop setiap 1.0 detik
+COMMAND_POLL_INTERVAL_MS = 800      # Ambil perintah tombol web setiap 0.8 detik (Respons cepat!)
+WIFI_RECONNECT_INTERVAL_MS = 5000   # Cek ulang koneksi Wi-Fi
 DEVICE_ID = "dispenser01"

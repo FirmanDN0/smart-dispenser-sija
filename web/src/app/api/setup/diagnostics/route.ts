@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
+import { getSimulationStore } from "@/lib/simulation";
 
 export async function GET() {
   const adminState = getFirebaseAdmin();
@@ -25,6 +26,11 @@ export async function GET() {
     } catch (e: unknown) {
       rtdbError = e instanceof Error ? e.message : "Gagal membaca database";
     }
+  } else {
+    // Mode Lokal / Server In-Memory
+    const sim = getSimulationStore();
+    deviceLastSeen = sim.state.last_seen || null;
+    rtdbConnected = true;
   }
 
   const allEnvConfigured = Object.values(envCheck).every(Boolean);
