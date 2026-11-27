@@ -92,9 +92,9 @@ def calculate_reservoir_pct(distance_cm):
     pct = ((empty_cm - distance_cm) / (empty_cm - full_cm)) * 100.0
     return round(pct, 1)
 
-# Timers for non-blocking cooperative scheduling
+# Timers for non-blocking cooperative scheduling (Di-offset agar tidak berebut RAM SSL bersamaan)
 last_telemetry_time = time.ticks_ms()
-last_command_poll_time = time.ticks_ms()
+last_command_poll_time = time.ticks_add(time.ticks_ms(), 1000)
 last_gc_time = time.ticks_ms()
 
 print("[MAIN] Loop kontrol keselamatan hardware aktif.")
@@ -232,17 +232,20 @@ while True:
                 cloud.send_events(pending_events)
 
     # Ambil perintah tombol dari Web Laptop jika Wi-Fi terhubung
-    # PENTING: Tetap polling saat pompa aktif (setiap 300ms) agar tombol STOP DARURAT langsung direspons!
+    # PENTING: Beri jeda selang-seling agar tidak berebut RAM SSL dengan pengiriman telemetri!
     if wifi.is_connected():
         cmd_poll_interval = 300 if pump_ctrl.is_dispensing else config.COMMAND_POLL_INTERVAL_MS
-        if time.ticks_diff(now, last_command_poll_time) >= cmd_poll_interval:
+        # Pastikan ada jeda minimal 1.2 detik setelah telemetri agar soket SSL selesai ditutup sempurna
+        time_since_telem = time.ticks_diff(now, last_telemetry_time)
+        can_poll_cmd = pump_ctrl.is_dispensing or (time_since_telem >= 1200)
+        if can_poll_cmd and time.ticks_diff(now, last_command_poll_time) >= cmd_poll_interval:
             last_command_poll_time = now
             commands = cloud.get_pending_commands()
             for cmd in commands:
                 cmd_handler.process_command(cmd, cup_detected, res_pct, spill_active)
 
-    # Periodic garbage collection to maintain heap stability
-    if time.ticks_diff(now, last_gc_time) >= 30000:
+    # Periodic aggressive garbage collection to maintain heap stability for mbedTLS
+    if time.ticks_diff(now, last_gc_time) >= 10000 or gc.mem_free() < 25000:
         last_gc_time = now
         gc.collect()
 

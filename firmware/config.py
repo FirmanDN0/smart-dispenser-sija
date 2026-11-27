@@ -21,7 +21,9 @@ RELAY_ACTIVE_LOW = True
 # ================= SENSOR CALIBRATION =================
 # Mode Pembacaan Sensor Ultrasonik Fisik Asli (HC-SR04 Hardware)
 SIMULATE_ULTRASONIC = False
-FALLBACK_SIMULATE_ON_ERROR = False
+# Jika bernilai True: saat kabel sensor fisik sempat kendor/timeout (-1.0 cm),
+# otomatis menggunakan nilai fallback aman agar sistem tidak macet di SENSOR_ERROR!
+FALLBACK_SIMULATE_ON_ERROR = True
 
 # Cup Ultrasonic Detection
 CUP_MIN_VALID_CM = 2.0
@@ -58,8 +60,9 @@ ENABLE_CLOUD_SYNC = True
 # Mode pengujian cepat pompa (Set True jika ingin pompa bisa nyala dari web meskipun cangkir belum dipasang)
 BYPASS_SAFETY_FOR_TEST = False
 
-# ================= LOCAL TIMINGS (Super Cepat di Jaringan Wi-Fi Lokal) =================
-TELEMETRY_INTERVAL_MS = 1000        # Kirim telemetri ke web laptop setiap 1.0 detik
-COMMAND_POLL_INTERVAL_MS = 800      # Ambil perintah tombol web setiap 0.8 detik (Respons cepat!)
+# ================= TIMINGS (Disesuaikan untuk Stabilitas Enkripsi SSL Vercel) =================
+# Diberi jeda 3-4 detik agar RAM ESP32 tidak kehabisan memori mbedTLS (MPI_ALLOC_FAILED)
+TELEMETRY_INTERVAL_MS = 3500        # Kirim telemetri setiap 3.5 detik saat standby
+COMMAND_POLL_INTERVAL_MS = 3000     # Ambil perintah tombol web setiap 3.0 detik saat standby
 WIFI_RECONNECT_INTERVAL_MS = 5000   # Cek ulang koneksi Wi-Fi
 DEVICE_ID = "dispenser01"
