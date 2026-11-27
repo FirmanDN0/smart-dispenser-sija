@@ -37,7 +37,7 @@ class CommandHandler:
 
         print(f"[CMD] Memproses perintah: {action} (ID: {cmd_id})")
 
-        if action == "STOP_DISPENSE":
+        if action in ("STOP_DISPENSE", "STOP", "EMERGENCY_STOP"):
             measured = self.pump_ctrl.stop_dispensing(reason="REMOTE_STOP")
             self.cloud_client.acknowledge_command(
                 command_id=cmd_id,

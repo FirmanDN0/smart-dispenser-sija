@@ -18,12 +18,20 @@ class RelayController:
         else:
             self.pin.value(1)
 
+    def activate(self):
+        """Alias for on()"""
+        self.on()
+
     def off(self):
         """Deactivate the relay (turns pump OFF)."""
         if self.active_low:
             self.pin.value(1)
         else:
             self.pin.value(0)
+
+    def deactivate(self):
+        """Alias for off()"""
+        self.off()
 
     def is_on(self):
         """Returns True if the relay is currently energized."""

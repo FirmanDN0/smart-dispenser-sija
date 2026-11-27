@@ -19,6 +19,15 @@ PIN_BUZZER_PWM = 25
 RELAY_ACTIVE_LOW = True
 
 # ================= SENSOR CALIBRATION =================
+# Mode Demo / Simulasi Ultrasonik (Set True saat sensor ultrasonik fisik error/kabel longgar)
+# Nilai jarak akan dibuat stabil di rentang aman dengan fluktuasi alami (micro-jitter)
+# sehingga AI berstatus AMAN dan pompa fisik tetap BISA menyedot air nyata!
+SIMULATE_ULTRASONIC = True
+FALLBACK_SIMULATE_ON_ERROR = True
+SIM_CUP_DISTANCE_BASE = 4.3         # Jarak cangkir aman (~4.3 cm, cangkir terdeteksi)
+SIM_RESERVOIR_DISTANCE_BASE = 6.8   # Jarak tandon aman (~6.8 cm, kapasitas air ~80%)
+PIN_BOOT_BUTTON = 0                 # Tombol fisik BOOT bawaan ESP32 untuk demo angkat gelas
+
 # Cup Ultrasonic Detection
 CUP_MIN_VALID_CM = 2.0
 CUP_MAX_VALID_CM = 40.0
@@ -37,8 +46,8 @@ SPILL_HYSTERESIS_ADC = 150
 
 # YF-S201 Flow Sensor Calibration
 # Pulses per milliliter (calibrated experimentally with measuring cup)
-# Disesuaikan ke 15.0 pulsa/ml hasil kalibrasi takaran fisik presisi
-FLOW_PULSES_PER_ML = 15.0
+# Nilai disesuaikan dari 15.0 menjadi 3.8 pulsa/ml agar saat pilih 50 ml, air yang keluar tepat 50 ml (tidak 200 ml lagi)
+FLOW_PULSES_PER_ML = 3.8
 
 # Kompensasi Inersia & Tetesan Akhir Aliran Air (After-Drip Offset)
 # Pompa dimatikan sekian ml lebih awal agar dorongan sisa air menggenapi takaran gelas

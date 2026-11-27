@@ -35,8 +35,8 @@ relay = RelayController(config.PIN_RELAY_IN, active_low=config.RELAY_ACTIVE_LOW)
 relay.deactivate()
 
 print("[3/5] Inisialisasi Sensor Ultrasonik & Baki...")
-cup_sensor = UltrasonicSensor(config.PIN_CUP_TRIG, config.PIN_CUP_ECHO)
-reservoir_sensor = UltrasonicSensor(config.PIN_RESERVOIR_TRIG, config.PIN_RESERVOIR_ECHO)
+cup_sensor = UltrasonicSensor(config.PIN_CUP_TRIG, config.PIN_CUP_ECHO, sim_base_dist=getattr(config, 'SIM_CUP_DISTANCE_BASE', 4.3), is_cup_sensor=True)
+reservoir_sensor = UltrasonicSensor(config.PIN_RESERVOIR_TRIG, config.PIN_RESERVOIR_ECHO, sim_base_dist=getattr(config, 'SIM_RESERVOIR_DISTANCE_BASE', 6.8), is_cup_sensor=False)
 spill_sensor = SpillSensor(config.PIN_SPILL_ADC)
 
 print("[4/5] Inisialisasi Sensor Flow Meter (GPIO 27)...")

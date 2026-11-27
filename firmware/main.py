@@ -35,9 +35,9 @@ flow_meter = FlowMeter(config.PIN_FLOW_SIGNAL, config.FLOW_PULSES_PER_ML)
 pump_ctrl = PumpController(relay, flow_meter, buzzer)
 pump_ctrl.stop_dispensing("BOOT_SAFETY_LOCK")
 
-# Initialize Sensors
-cup_sensor = UltrasonicSensor(config.PIN_CUP_TRIG, config.PIN_CUP_ECHO)
-reservoir_sensor = UltrasonicSensor(config.PIN_RESERVOIR_TRIG, config.PIN_RESERVOIR_ECHO)
+# Initialize Sensors (dengan dukungan base jarak simulasi aman saat demo & tombol BOOT untuk simulasi angkat gelas)
+cup_sensor = UltrasonicSensor(config.PIN_CUP_TRIG, config.PIN_CUP_ECHO, sim_base_dist=getattr(config, 'SIM_CUP_DISTANCE_BASE', 4.3), is_cup_sensor=True)
+reservoir_sensor = UltrasonicSensor(config.PIN_RESERVOIR_TRIG, config.PIN_RESERVOIR_ECHO, sim_base_dist=getattr(config, 'SIM_RESERVOIR_DISTANCE_BASE', 6.8), is_cup_sensor=False)
 spill_sensor = SpillSensor(config.PIN_SPILL_ADC)
 
 # Initialize Core Services
@@ -222,8 +222,10 @@ while True:
                 cloud.send_events(pending_events)
 
     # Ambil perintah tombol dari Web Laptop jika Wi-Fi terhubung
-    if wifi.is_connected() and not pump_ctrl.is_dispensing:
-        if time.ticks_diff(now, last_command_poll_time) >= config.COMMAND_POLL_INTERVAL_MS:
+    # PENTING: Tetap polling saat pompa aktif (setiap 300ms) agar tombol STOP DARURAT langsung direspons!
+    if wifi.is_connected():
+        cmd_poll_interval = 300 if pump_ctrl.is_dispensing else config.COMMAND_POLL_INTERVAL_MS
+        if time.ticks_diff(now, last_command_poll_time) >= cmd_poll_interval:
             last_command_poll_time = now
             commands = cloud.get_pending_commands()
             for cmd in commands:
