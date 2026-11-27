@@ -2,6 +2,7 @@
 import urequests
 import ujson
 import time
+import gc
 import config
 
 class CloudClient:
@@ -53,10 +54,13 @@ class CloudClient:
             "timestamp": time.time(),
             "telemetry": telemetry_payload
         }
+        gc.collect()  # Bebaskan RAM sebelum handshake SSL TLS mbedTLS
         try:
             res = urequests.post(url, data=ujson.dumps(payload), headers=self.headers, timeout=5)
             status = res.status_code
             res.close()
+            del res
+            gc.collect()
             if status in (200, 201):
                 # Feedback visual di Thonny agar terlihat jelas data masuk ke web
                 self._fail_count = 0
@@ -66,24 +70,31 @@ class CloudClient:
                 print(f"[GATEWAY] Respon server: status {status}")
                 return False
         except Exception as e:
+            gc.collect()
             print(f"[GATEWAY] Gagal kirim ke web ({url}): {e}")
             self._fail_count += 1
-            if self._fail_count >= 3:
+            if self._fail_count >= 5:
                 self._try_alternate_url()
             return False
 
     def get_pending_commands(self):
         """Polls for pending commands from GET /api/device/commands."""
         url = f"{self.base_url}/api/device/commands?deviceId={self.device_id}"
+        gc.collect()  # Bebaskan RAM sebelum handshake SSL TLS mbedTLS
         try:
             res = urequests.get(url, headers=self.headers, timeout=5)
             if res.status_code == 200:
                 data = res.json()
                 res.close()
+                del res
+                gc.collect()
                 return data.get("commands", [])
             res.close()
+            del res
+            gc.collect()
             return []
         except Exception as e:
+            gc.collect()
             # Silent fallback during offline/disconnected state
             return []
 
