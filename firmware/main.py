@@ -47,7 +47,7 @@ ai_engine = AIClassifier()
 wifi_list = getattr(secrets, 'WIFI_NETWORKS', [(secrets.WIFI_SSID, secrets.WIFI_PASSWORD)])
 wifi = WiFiManager(networks=wifi_list)
 cloud = CloudClient(secrets.API_BASE_URL, secrets.DEVICE_SECRET_TOKEN, config.DEVICE_ID)
-cmd_handler = CommandHandler(pump_ctrl, cloud, ai_engine)
+cmd_handler = CommandHandler(pump_ctrl, cloud, ai_engine, buzzer=buzzer)
 
 # Connect to Wi-Fi for local web gateway communication
 wifi.connect(timeout_sec=12)
@@ -113,6 +113,9 @@ while True:
     flow_pulses = flow_meter.get_session_pulses()
     no_flow_ms = flow_meter.get_no_pulse_duration_ms()
 
+    # AUTO-DISPENSE TRIGGER: Cek apakah sistem sedang menunggu cangkir didekatkan
+    cmd_handler.check_armed_trigger(cup_detected, res_pct, spill_active)
+
     sensor_validity = (cup_dist_cm >= 0 and res_dist_cm >= 0)
 
     # 2. RUN AI CLASSIFICATION (Local on ESP32)
@@ -128,6 +131,13 @@ while True:
         "sensor_validity": sensor_validity
     }
     ai_class, ai_risk, ai_exp, ai_act = ai_engine.classify(sensor_snapshot)
+
+    # Jika sedang dalam mode Siaga (Armed) menunggu cangkir diletakkan pengguna
+    if cmd_handler.is_armed() and not pump_ctrl.is_dispensing:
+        armed_vol = cmd_handler.armed_command.get("volume_ml", 0) if cmd_handler.armed_command else 0
+        ai_class = "MENUNGGU_CANGKIR"
+        ai_risk = "LOW"
+        ai_exp = f"Takaran {armed_vol} ml SIAGA. Silakan letakkan cangkir di bawah corong untuk menuang otomatis."
 
     # 3. SAFETY INTERLOCK (Instant local execution, millisecond response!)
     is_safe, violation = safety_ctrl.check_safety_and_enforce(

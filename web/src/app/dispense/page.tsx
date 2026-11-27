@@ -49,16 +49,16 @@ export default function DispensePage() {
     } catch {}
   };
 
-  // Check hardware pre-conditions
+  // Check hardware pre-conditions (Fitur Smart Touchless: Siswa bisa pilih takaran dulu sebelum taruh cangkir!)
   const isCupReady = telemetry.cup_detected;
   const isTankSufficient = telemetry.reservoir_percentage > 10;
   const isTrayDry = !telemetry.spill_detected;
-  const canStart = (bypassSafety || (isCupReady && isTankSufficient && isTrayDry)) && !telemetry.pump_running;
+  const canStart = (bypassSafety || (isTankSufficient && isTrayDry)) && !telemetry.pump_running;
 
   const handleStartDispense = async () => {
     setIsSubmitting(true);
     setSessionVolume(0);
-    setCommandFeedback({ type: "info", message: "Mengirimkan perintah ke ESP32..." });
+    setCommandFeedback({ type: "info", message: "Menyiapkan takaran ke dispenser..." });
 
     try {
       // Pastikan server di-reset ke 0 ml saat pengisian baru dimulai
@@ -76,7 +76,9 @@ export default function DispensePage() {
       } else {
         setCommandFeedback({
           type: "success",
-          message: data.message || "Perintah berhasil dikirim ke antrean ESP32.",
+          message: isCupReady
+            ? `Perintah aktif. Menuang ${selectedVolume} ml air ke cangkir...`
+            : `Takaran ${selectedVolume} ml SIAGA! Silakan letakkan cangkir di bawah corong, pompa akan menyala otomatis.`,
         });
       }
     } catch {
@@ -118,13 +120,13 @@ export default function DispensePage() {
             className={`p-3 rounded border text-xs flex items-center space-x-2.5 ${
               isCupReady
                 ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                : "bg-red-50 border-red-200 text-red-800"
+                : "bg-blue-50 border-blue-200 text-blue-800"
             }`}
           >
-            {isCupReady ? <CheckCircle2 className="w-4 h-4" /> : <AlertOctagon className="w-4 h-4" />}
+            {isCupReady ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Clock className="w-4 h-4 text-blue-600 animate-pulse" />}
             <div>
-              <p className="font-semibold">{isCupReady ? "Cangkir Terdeteksi" : "Cangkir Tidak Ada"}</p>
-              <p className="text-[10px] font-mono">{telemetry.cup_distance_cm} cm</p>
+              <p className="font-semibold">{isCupReady ? "Cangkir Terpasang" : "Siaga: Taruh Cangkir"}</p>
+              <p className="text-[10px] font-mono">{isCupReady ? `${telemetry.cup_distance_cm} cm` : "Otomatis jalan saat ditaruh"}</p>
             </div>
           </div>
 
@@ -327,7 +329,13 @@ export default function DispensePage() {
             className="flex-1 flex items-center justify-center space-x-2 bg-[#2563EB] hover:bg-blue-700 disabled:opacity-40 text-white font-semibold py-3 px-6 rounded text-sm transition"
           >
             <Play className="w-4 h-4 fill-white" />
-            <span>Mulai Pengisian ({selectedVolume} ml)</span>
+            <span>
+              {telemetry.pump_running
+                ? "Sedang Mengalirkan Air..."
+                : isCupReady
+                ? `Tuang Sekarang (${selectedVolume} ml)`
+                : `Siapkan Takaran (${selectedVolume} ml) — Otomatis Saat Cangkir Ditaruh`}
+            </span>
           </button>
 
           <button
