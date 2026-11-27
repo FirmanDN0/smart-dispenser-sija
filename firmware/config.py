@@ -19,14 +19,9 @@ PIN_BUZZER_PWM = 25
 RELAY_ACTIVE_LOW = True
 
 # ================= SENSOR CALIBRATION =================
-# Mode Demo / Simulasi Ultrasonik (Set True saat sensor ultrasonik fisik error/kabel longgar)
-# Nilai jarak akan dibuat stabil di rentang aman dengan fluktuasi alami (micro-jitter)
-# sehingga AI berstatus AMAN dan pompa fisik tetap BISA menyedot air nyata!
-SIMULATE_ULTRASONIC = True
-FALLBACK_SIMULATE_ON_ERROR = True
-SIM_CUP_DISTANCE_BASE = 4.3         # Jarak cangkir aman (~4.3 cm, cangkir terdeteksi)
-SIM_RESERVOIR_DISTANCE_BASE = 6.8   # Jarak tandon aman (~6.8 cm, kapasitas air ~80%)
-PIN_BOOT_BUTTON = 0                 # Tombol fisik BOOT bawaan ESP32 untuk demo angkat gelas
+# Mode Pembacaan Sensor Ultrasonik Fisik Asli (HC-SR04 Hardware)
+SIMULATE_ULTRASONIC = False
+FALLBACK_SIMULATE_ON_ERROR = False
 
 # Cup Ultrasonic Detection
 CUP_MIN_VALID_CM = 2.0
